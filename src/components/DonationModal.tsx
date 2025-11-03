@@ -7,11 +7,27 @@ import { QRCodeSVG } from "qrcode.react";
 import { Copy, Check, Upload, FileCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { z } from "zod";
 
 interface DonationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const donationSchema = z.object({
+  nome_doador: z.string()
+    .trim()
+    .max(100, "Nome deve ter no máximo 100 caracteres")
+    .regex(/^[a-zA-ZÀ-ÿ\s]*$/, "Nome deve conter apenas letras")
+    .optional()
+    .default("Anônimo"),
+  valor: z.number()
+    .positive("Valor deve ser positivo")
+    .min(0.01, "Valor mínimo é R$ 0,01")
+    .max(100000, "Valor máximo é R$ 100.000,00"),
+  metodo: z.literal("pix"),
+  comprovante_url: z.string().url("URL inválida"),
+});
 
 export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
   const [nome, setNome] = useState("");
@@ -47,11 +63,6 @@ export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
   };
 
   const handleConfirm = async () => {
-    if (!valor || parseFloat(valor) <= 0) {
-      toast.error("Por favor, insira um valor válido");
-      return;
-    }
-
     if (!comprovante) {
       toast.error("Por favor, envie o comprovante de pagamento");
       return;
@@ -60,6 +71,14 @@ export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
     setUploading(true);
 
     try {
+      // Validate input with zod
+      const validatedData = donationSchema.parse({
+        nome_doador: nome.trim() || "Anônimo",
+        valor: parseFloat(valor),
+        metodo: "pix",
+        comprovante_url: "placeholder", // Will be replaced after upload
+      });
+
       // 1. Upload do comprovante
       const fileExt = comprovante.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -78,9 +97,9 @@ export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
 
       // 3. Registrar doação com comprovante
       const { error: insertError } = await supabase.from("doacoes").insert({
-        nome_doador: nome.trim() || "Anônimo",
-        valor: parseFloat(valor),
-        metodo: "pix",
+        nome_doador: validatedData.nome_doador,
+        valor: validatedData.valor,
+        metodo: validatedData.metodo,
         comprovante_url: urlData.publicUrl,
       });
 
@@ -92,8 +111,14 @@ export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
       setComprovante(null);
       onOpenChange(false);
     } catch (error) {
-      console.error("Erro ao registrar doação:", error);
-      toast.error("Erro ao registrar doação. Tente novamente.");
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else if (import.meta.env.DEV) {
+        console.error("Erro ao registrar doação:", error);
+        toast.error("Erro ao registrar doação. Tente novamente.");
+      } else {
+        toast.error("Erro ao registrar doação. Tente novamente.");
+      }
     } finally {
       setUploading(false);
     }
