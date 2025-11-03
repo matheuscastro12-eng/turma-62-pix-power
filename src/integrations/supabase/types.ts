@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       doacoes: {
         Row: {
+          comprovante_url: string | null
           created_at: string
           data: string
           id: string
@@ -24,6 +25,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          comprovante_url?: string | null
           created_at?: string
           data?: string
           id?: string
@@ -32,6 +34,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          comprovante_url?: string | null
           created_at?: string
           data?: string
           id?: string

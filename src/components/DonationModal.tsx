@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { QRCodeSVG } from "qrcode.react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Upload, FileCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -17,6 +17,8 @@ export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
   const [nome, setNome] = useState("");
   const [valor, setValor] = useState("");
   const [copied, setCopied] = useState(false);
+  const [comprovante, setComprovante] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const pixKey = "62comissaolxii@gmail.com";
 
   const handleCopy = async () => {
@@ -26,28 +28,74 @@ export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar tipo de arquivo (apenas imagens)
+      if (!file.type.startsWith("image/")) {
+        toast.error("Por favor, envie apenas imagens (JPG, PNG, etc.)");
+        return;
+      }
+      // Validar tamanho (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("O arquivo deve ter no máximo 5MB");
+        return;
+      }
+      setComprovante(file);
+      toast.success("Comprovante selecionado!");
+    }
+  };
+
   const handleConfirm = async () => {
     if (!valor || parseFloat(valor) <= 0) {
       toast.error("Por favor, insira um valor válido");
       return;
     }
 
+    if (!comprovante) {
+      toast.error("Por favor, envie o comprovante de pagamento");
+      return;
+    }
+
+    setUploading(true);
+
     try {
-      const { error } = await supabase.from("doacoes").insert({
+      // 1. Upload do comprovante
+      const fileExt = comprovante.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("comprovantes")
+        .upload(filePath, comprovante);
+
+      if (uploadError) throw uploadError;
+
+      // 2. Obter URL pública do comprovante
+      const { data: urlData } = supabase.storage
+        .from("comprovantes")
+        .getPublicUrl(filePath);
+
+      // 3. Registrar doação com comprovante
+      const { error: insertError } = await supabase.from("doacoes").insert({
         nome_doador: nome.trim() || "Anônimo",
         valor: parseFloat(valor),
         metodo: "pix",
+        comprovante_url: urlData.publicUrl,
       });
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       toast.success("Doação registrada com sucesso! Muito obrigado! 🎉");
       setNome("");
       setValor("");
+      setComprovante(null);
       onOpenChange(false);
     } catch (error) {
       console.error("Erro ao registrar doação:", error);
       toast.error("Erro ao registrar doação. Tente novamente.");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -116,18 +164,56 @@ export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
                 onChange={(e) => setValor(e.target.value)}
               />
             </div>
+
+            {/* Upload do Comprovante */}
+            <div className="space-y-2">
+              <Label htmlFor="comprovante">
+                Comprovante de Pagamento <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="comprovante"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => document.getElementById("comprovante")?.click()}
+                >
+                  {comprovante ? (
+                    <>
+                      <FileCheck className="w-4 h-4 mr-2 text-green-500" />
+                      {comprovante.name}
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Selecionar Comprovante
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Envie uma foto do comprovante do PIX (máximo 5MB)
+              </p>
+            </div>
           </div>
 
           {/* Botão de Confirmar */}
           <Button
             onClick={handleConfirm}
             className="w-full btn-hero text-lg py-6"
+            disabled={uploading || !comprovante}
           >
-            Confirmar Doação
+            {uploading ? "Enviando..." : "Confirmar Doação"}
           </Button>
 
           <p className="text-sm text-muted-foreground text-center">
-            Após fazer o PIX, confirme sua doação aqui para atualizar o painel! 🙏
+            ⚠️ É obrigatório enviar o comprovante do PIX para registrar a doação! 
           </p>
         </div>
       </DialogContent>

@@ -10,7 +10,7 @@ const Index = () => {
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-primary/90 to-accent/30 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary/95 via-background to-primary/80 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <header className="text-center mb-12 animate-slide-up">
