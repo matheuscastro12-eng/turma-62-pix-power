@@ -1,9 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { HeartHandshake } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export const TotalCard = () => {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
   const { data: total, refetch } = useQuery({
     queryKey: ["total-doacoes"],
     queryFn: async () => {
@@ -19,6 +22,24 @@ export const TotalCard = () => {
   });
 
   useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: adminData } = await supabase
+          .from("admin_users")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .single();
+        
+        setIsAdmin(!!adminData);
+      }
+      setLoading(false);
+    };
+
+    checkAdmin();
+
     const channel = supabase
       .channel("doacoes-changes")
       .on(
@@ -45,6 +66,14 @@ export const TotalCard = () => {
       currency: "BRL",
     }).format(value);
   };
+
+  if (loading) {
+    return null;
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <div className="card-gold animate-slide-up">

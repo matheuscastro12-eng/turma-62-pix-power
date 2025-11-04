@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { LogOut, ExternalLink, HeartHandshake } from "lucide-react";
+import { LogOut, ExternalLink, HeartHandshake, Edit } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { EditTotalModal } from "@/components/EditTotalModal";
 
 const Admin = () => {
   const navigate = useNavigate();
   const [adminName, setAdminName] = useState("");
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   const { data: doacoes, refetch } = useQuery({
     queryKey: ["admin-doacoes"],
@@ -27,7 +29,7 @@ const Admin = () => {
     },
   });
 
-  const { data: total } = useQuery({
+  const { data: total, refetch: refetchTotal } = useQuery({
     queryKey: ["admin-total"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -138,9 +140,20 @@ const Admin = () => {
         {/* Stats Card */}
         <Card className="mb-8 border-border/50 shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HeartHandshake className="w-6 h-6 text-primary" />
-              Resumo da Campanha
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HeartHandshake className="w-6 h-6 text-primary" />
+                Resumo da Campanha
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditModalOpen(true)}
+                className="gap-2"
+              >
+                <Edit className="w-4 h-4" />
+                Ajustar Total
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -222,6 +235,17 @@ const Admin = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Edit Total Modal */}
+        <EditTotalModal
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          currentTotal={total || 0}
+          onSuccess={() => {
+            refetchTotal();
+            refetch();
+          }}
+        />
       </div>
     </div>
   );

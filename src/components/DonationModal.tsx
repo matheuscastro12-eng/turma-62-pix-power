@@ -3,11 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { QRCodeSVG } from "qrcode.react";
 import { Copy, Check, Upload, FileCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import qrCodePix from "@/assets/qr-code-pix.jpg";
 
 interface DonationModalProps {
   open: boolean;
@@ -136,7 +136,7 @@ export const DonationModal = ({ open, onOpenChange }: DonationModalProps) => {
           {/* QR Code */}
           <div className="flex justify-center">
             <div className="bg-white p-4 rounded-lg">
-              <QRCodeSVG value={pixKey} size={200} />
+              <img src={qrCodePix} alt="QR Code PIX" className="w-[200px] h-[200px]" />
             </div>
           </div>
 
