@@ -36,6 +36,7 @@ export const EditTotalModal = ({ open, onOpenChange, currentTotal, onSuccess }: 
         nome_doador: nome,
         valor: adjustedAmount,
         metodo: "pix",
+        comprovante_url: "https://placeholder.com/ajuste-manual",
       });
 
       if (error) throw error;
